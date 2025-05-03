@@ -5,4 +5,3 @@ The primary goal of this project is to learn and apply concepts related to Gener
 ## Development Environment & Standards
 
 * **Language:** Python 3.13.2
-* **Coding Style:** This project aims to adhere strictly to the [**Google Python Style Guide**](https://google.github.io/styleguide/pyguide.html).
