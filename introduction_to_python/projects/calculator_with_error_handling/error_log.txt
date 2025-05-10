@@ -1,0 +1,15 @@
+
+INFO: __main__ - Calculator program started. - 2025-05-10 14:12:59
+INFO: __main__ - Operation selected: Addition. - 2025-05-10 14:13:00
+INFO: __main__ - Operation selected: Subtraction. - 2025-05-10 14:13:12
+INFO: __main__ - Operation selected: Multiplication. - 2025-05-10 14:13:23
+ERROR: __main__ - ValueError occurred: User entered a value that could not be cast to int. - 2025-05-10 14:13:24
+INFO: __main__ - Operation selected: Division. - 2025-05-10 14:13:33
+ERROR: __main__ - ZeroDivisionError occurred: division by zero - 2025-05-10 14:13:38
+Traceback (most recent call last):
+  File "/Users/chrisvanderveen/Documents/dev/cognizant_genai_externship/introduction_to_python/projects/calculator_with_error_handling/calculator.py", line 88, in calculator
+    res = num1 / num2
+          ~~~~~^~~~~~
+ZeroDivisionError: division by zero
+INFO: __main__ - Operation selected: Division. - 2025-05-10 14:13:42
+INFO: __main__ - Calculator program finished successfully. - 2025-05-10 14:13:50
