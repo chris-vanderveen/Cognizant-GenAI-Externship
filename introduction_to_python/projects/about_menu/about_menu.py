@@ -89,7 +89,5 @@ def draw_recursive_snowflake(length: int, depth: int, isRoot=True) -> None:
 
             t.left(60)
 
-        t.hideturtle()
-
 if __name__ == "__main__":
     main()
