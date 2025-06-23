@@ -1,6 +1,13 @@
 from typing import Any
 import httpx
+import logging
 from mcp.server.fastmcp import FastMCP
+
+# Suppress ALL logging to prevent any output that might interfere with the UI
+logging.basicConfig(level=logging.CRITICAL)
+logging.getLogger().setLevel(logging.CRITICAL)
+for logger_name in ['httpx', 'httpcore', 'mcp', 'fastmcp']:
+    logging.getLogger(logger_name).setLevel(logging.CRITICAL)
 
 # Initialize FastMCP server
 mcp = FastMCP("weather")

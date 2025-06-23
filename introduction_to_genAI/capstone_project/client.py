@@ -32,8 +32,8 @@ class ToolInfo:
 
 
 class WeatherMCPClient:
-    """MCP client interface for weather operations"""
-    def __init__(self):
+    """MCP client interface for weather operations with conversation memory"""
+    def __init__(self, max_context_messages: int = 20):
         # Initialize session and client objects
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
@@ -41,10 +41,32 @@ class WeatherMCPClient:
         self._connected = False
         self._available_tools: List[ToolInfo] = []
 
+        # Conversation memory
+        self.conversation_history: List[Dict[str, str]] = []
+        self.max_context_messages = max_context_messages
+
+        # System prompt
+        self.system_prompt = ("You are a helpful assistant with access to weather tools. "
+                             "You can have conversations, answer questions on any topic, and use weather tools when appropriate. "
+                             "Be conversational and remember previous parts of our conversation.")
+
     @property
     def is_connected(self) -> bool:
         """Check if client is connected to MCP server"""
         return self._connected and self.session is not None
+
+    def add_to_conversation(self, role: str, content: str):
+        """Add a message to conversation history"""
+        if role in ["user", "assistant"]:
+            self.conversation_history.append({"role": role, "content": content})
+
+            # Keep only the last N messages to prevent context overflow
+            if len(self.conversation_history) > self.max_context_messages:
+                self.conversation_history = self.conversation_history[-self.max_context_messages:]
+
+    def clear_conversation(self):
+        """Clear conversation history"""
+        self.conversation_history = []
 
     async def connect(self, server_script_path: str = "weather.py") -> ClientResponse:
         """Connect to weather MCP server
@@ -87,6 +109,7 @@ class WeatherMCPClient:
             self._connected = True
 
             tool_names = [tool.name for tool in self._available_tools]
+
             return ClientResponse(
                 success=True,
                 content=f"Connected successfully. Available tools: {', '.join(tool_names)}"
@@ -105,7 +128,7 @@ class WeatherMCPClient:
         return self._available_tools.copy()
 
     async def process_query(self, query: str) -> ClientResponse:
-        """Process a query using Claude and available tools
+        """Process a query using Claude and available tools with conversation context
 
         Args:
             query: User query to process
@@ -121,7 +144,11 @@ class WeatherMCPClient:
             )
 
         try:
-            messages = [{"role": "user", "content": query}]
+            # Add user message to conversation history
+            self.add_to_conversation("user", query)
+
+            # Build messages with conversation context (user/assistant only)
+            messages = self.conversation_history.copy()
 
             # Prep tools for Claude
             available_tools = [{
@@ -130,9 +157,11 @@ class WeatherMCPClient:
                 "input_schema": tool.input_schema
             } for tool in self._available_tools]
 
+            # FIXED: Pass system prompt as separate parameter
             response = self.anthropic.messages.create(
                 model=MODEL,
                 max_tokens=1000,
+                system=self.system_prompt,
                 messages=messages,
                 tools=available_tools
             )
@@ -151,7 +180,7 @@ class WeatherMCPClient:
                     "content": response.content
                 })
 
-                # Execute all tool calls and collect results
+                # Executetool calls and collect results
                 tool_results = []
                 for content in response.content:
                     if content.type == 'tool_use':
@@ -185,6 +214,7 @@ class WeatherMCPClient:
                 final_response = self.anthropic.messages.create(
                     model=MODEL,
                     max_tokens=1000,
+                    system=self.system_prompt,  # System prompt here too
                     messages=messages,
                 )
 
@@ -198,11 +228,14 @@ class WeatherMCPClient:
                     if content.type == 'text':
                         final_text.append(content.text)
 
-            content = "\n".join(final_text) if final_text else "No response generated"
+            assistant_response = "\n".join(final_text) if final_text else "No response generated"
+
+            # Add assistant response to conversation history
+            self.add_to_conversation("assistant", assistant_response)
 
             return ClientResponse(
                 success=True,
-                content=content,
+                content=assistant_response,
                 tool_calls=tool_calls_made
             )
 
@@ -213,7 +246,6 @@ class WeatherMCPClient:
                 error=f"Error processing query: {str(e)}"
             )
 
-
     async def cleanup(self):
         """Clean up resources"""
         try:
@@ -223,6 +255,7 @@ class WeatherMCPClient:
         finally:
             self._connected = False
             self._available_tools = []
+            self.conversation_history = []
 
     async def __aenter__(self):
         """Async context manager entry"""
